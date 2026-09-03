@@ -1,0 +1,27 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio and IDE settings
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local database files
+*.mdf
+*.ldf
+*.db
+*.db-shm
+*.db-wal
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS files
+Thumbs.db
+Desktop.ini
