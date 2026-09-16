@@ -1,8 +1,7 @@
-﻿using EmployeeApi.Model.Employee;
+using EmployeeApi.Helpers;
 using EmployeeApi.Service.Employee;
 using EmployeeApi.ViewModel.Employee;
 using Microsoft.AspNetCore.Mvc;
-
 using EmployeeEntity = EmployeeApi.Model.Employee.Employee;
 
 namespace EmployeeApi.Api.v1
@@ -21,7 +20,9 @@ namespace EmployeeApi.Api.v1
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            return Ok(await _service.GetAll());
+            var employees = await _service.GetAll();
+
+            return ApiResponseHelper.Ok(employees, "Employees fetched successfully.");
         }
 
         [HttpGet("{id:int}")]
@@ -29,18 +30,24 @@ namespace EmployeeApi.Api.v1
         {
             var employee = await _service.GetById(id);
 
-            return employee is null
-                ? NotFound()
-                : Ok(employee);
+            if (employee is null)
+            {
+                return ApiResponseHelper.NotFound(
+                    "Employee not found.",
+                    [$"Employee with ID {id} was not found."]);
+            }
+
+            return ApiResponseHelper.Ok(employee, "Employee fetched successfully.");
         }
 
         [HttpPost("create/edit")]
-        public async Task<IActionResult> Create(
-            [FromBody] CreateEmployeeViewModel model)
+        public async Task<IActionResult> Create([FromBody] CreateEmployeeViewModel model)
         {
             if (model.Id != 0 && await _service.GetById(model.Id) is null)
             {
-                return NotFound($"Employee with ID {model.Id} was not found.");
+                return ApiResponseHelper.NotFound(
+                    "Employee not found.",
+                    [$"Employee with ID {model.Id} was not found."]);
             }
 
             var employee = new EmployeeEntity
@@ -55,22 +62,27 @@ namespace EmployeeApi.Api.v1
             {
                 var createdEmployee = await _service.Create(employee);
 
-                return CreatedAtAction(
-                    nameof(GetById),
-                    new { id = createdEmployee.Id },
-                    createdEmployee
-                );
+                return ApiResponseHelper.Ok(createdEmployee, "Employee created successfully.");
             }
 
-            return Ok(await _service.Update(employee));
+            var updatedEmployee = await _service.Update(employee);
+
+            return ApiResponseHelper.Ok(updatedEmployee, "Employee updated successfully.");
         }
 
         [HttpPost("delete/{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            return await _service.Delete(id)
-                ? NoContent()
-                : NotFound();
+            var deleted = await _service.Delete(id);
+
+            if (!deleted)
+            {
+                return ApiResponseHelper.NotFound(
+                    "Employee not found.",
+                    [$"Employee with ID {id} was not found."]);
+            }
+
+            return ApiResponseHelper.Ok(Array.Empty<object>(), "Employee deleted successfully.");
         }
     }
 }

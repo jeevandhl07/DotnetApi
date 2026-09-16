@@ -1,14 +1,10 @@
 using EmployeeApi;
-using EmployeeApi.Data;
-using Microsoft.EntityFrameworkCore;
+using EmployeeApi.Response;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddControllers()
+    .AddApiResponseFormat();
 
 builder.Services.AddEmployeeApiServices();
 
@@ -24,11 +20,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.EnsureCreated();
-}
+app.UseApiExceptionMiddleware();
 
 if (!app.Environment.IsDevelopment())
 {

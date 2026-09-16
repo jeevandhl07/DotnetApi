@@ -1,53 +1,84 @@
-﻿using EmployeeApi.Data;
-using Microsoft.EntityFrameworkCore;
+using System.Data;
+using Dapper;
+using Microsoft.Data.SqlClient;
 using EmployeeEntity = EmployeeApi.Model.Employee.Employee;
-namespace EmployeeApi.Service.Employee
 
+namespace EmployeeApi.Service.Employee
 {
     public class EmployeeService : IEmployeeService
     {
-        private readonly ApplicationDbContext _context;
-        public EmployeeService(ApplicationDbContext context)
+        private readonly string _connectionString;
+
+        public EmployeeService(IConfiguration configuration)
         {
-            _context = context;
+            _connectionString = configuration.GetConnectionString("DefaultConnection")
+                ?? throw new InvalidOperationException("Connection string 'DefaultConnection' was not found.");
         }
+
+        private SqlConnection CreateConnection() => new(_connectionString);
 
         public async Task<List<EmployeeEntity>> GetAll()
         {
-            return await _context.Employees.ToListAsync();
+            await using var connection = CreateConnection();
+
+            var employees = await connection.QueryAsync<EmployeeEntity>(
+                "dbo.Employee_GetAll",
+                commandType: CommandType.StoredProcedure);
+
+            return employees.ToList();
         }
 
         public async Task<EmployeeEntity?> GetById(int id)
         {
-            return await _context.Employees.FindAsync(id);
+            await using var connection = CreateConnection();
+
+            return await connection.QuerySingleOrDefaultAsync<EmployeeEntity>(
+                "dbo.Employee_GetById",
+                new { Id = id },
+                commandType: CommandType.StoredProcedure);
         }
 
         public async Task<EmployeeEntity> Create(EmployeeEntity employee)
         {
-            _context.Employees.Add(employee);
-            await _context.SaveChangesAsync();
-            return employee;
+            await using var connection = CreateConnection();
+
+            return await connection.QuerySingleAsync<EmployeeEntity>(
+                "dbo.Employee_Create",
+                new
+                {
+                    employee.Name,
+                    employee.Email,
+                    employee.Salary
+                },
+                commandType: CommandType.StoredProcedure);
         }
 
         public async Task<EmployeeEntity> Update(EmployeeEntity employee)
         {
-            var existingEmployee = await _context.Employees.FindAsync(employee.Id)
-                ?? throw new KeyNotFoundException($"Employee {employee.Id} was not found.");
-            _context.Entry(existingEmployee).CurrentValues.SetValues(employee);
-            await _context.SaveChangesAsync();
-            return existingEmployee;
+            await using var connection = CreateConnection();
+
+            return await connection.QuerySingleAsync<EmployeeEntity>(
+                "dbo.Employee_Update",
+                new
+                {
+                    employee.Id,
+                    employee.Name,
+                    employee.Email,
+                    employee.Salary
+                },
+                commandType: CommandType.StoredProcedure);
         }
 
         public async Task<bool> Delete(int id)
         {
-            var employee = await _context.Employees.FindAsync(id);
-            if (employee is null)
-            {
-                return false;
-            }
-            _context.Employees.Remove(employee);
-            await _context.SaveChangesAsync();
-            return true;
+            await using var connection = CreateConnection();
+
+            var deletedRows = await connection.ExecuteScalarAsync<int>(
+                "dbo.Employee_Delete",
+                new { Id = id },
+                commandType: CommandType.StoredProcedure);
+
+            return deletedRows > 0;
         }
     }
 }
